@@ -33,7 +33,6 @@
     state: latest
     executable: "/usr/bin/pip3"
 
-# need to figure out a way to clone the latest stable release instead of trunk
 - name: Clone latest NetBox release from Github
   git:
     repo: "https://github.com/digitalocean/netbox.git"
