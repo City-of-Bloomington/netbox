@@ -1,0 +1,114 @@
+---
+- include: superuser.yml
+
+- name: Install related packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  tags: python
+  with_items:
+    - python3
+    - python3-dev
+    - python3-pip
+    - python3-virtualenv
+    - python3-psycopg2
+    - libxml2-dev 
+    - libxslt1-dev 
+    - libffi-dev 
+    - graphviz 
+    - libpq-dev 
+    - libssl-dev 
+    - zlib1g-dev
+    - libapache2-mod-wsgi-py3
+
+- name: Upgrade pip
+  pip:
+    name: pip
+    state: latest
+    executable: "/usr/bin/pip3"
+
+- name: Install virtualenv via pip
+  pip:
+    name: virtualenv
+    state: latest
+    executable: "/usr/bin/pip3"
+
+# need to figure out a way to clone the latest stable release instead of trunk
+- name: Clone latest NetBox release from Github
+  git:
+    repo: "https://github.com/digitalocean/netbox.git"
+    dest: "{{ netbox_path }}"
+
+- name: Create NetBox virtualenv and install needed Python dependencies
+  pip:
+    requirements: "{{ netbox_path }}/requirements.txt"
+    virtualenv: "{{ netbox_virtualenv_path }}"
+    virtualenv_python: "/usr/bin/python3"
+
+- name: Enable WSGI module in apache
+  apache2_module: state=present name=wsgi
+
+- name: Copy over our modified config file
+  template:
+    src: configuration.py
+    dest: "{{ netbox_path }}/netbox/netbox/configuration.py"
+
+- name: Create PostgreSQL user
+  become_user: "postgres"
+  postgresql_user: 
+    name: netbox
+    password: "{{netbox_dbuser_password}}"
+
+- name: Create PostgreSQL database
+  become_user: "postgres"
+  postgresql_db: 
+    name: netbox
+    owner: netbox
+
+- name: Run database migrations
+  django_manage:
+    command: migrate
+    app_path: "{{ netbox_path }}/netbox"
+    virtualenv: "{{ netbox_virtualenv_path }}"
+
+- name: Collect statics
+  django_manage:
+    command: collectstatic
+    app_path: "{{ netbox_path }}/netbox"
+    virtualenv: "{{ netbox_virtualenv_path }}"
+
+- name: insert initial data
+  django_manage:
+    command: loaddata
+    fixtures: initial_data
+    app_path: "{{ netbox_path }}/netbox"
+    virtualenv: "{{ netbox_virtualenv_path }}"
+
+# WEB SERVER CONFIG
+
+- name: Configure Apache proxy module
+  apache2_module:
+    state: present
+    name: proxy
+
+- name: Configure Apache proxy_http module
+  apache2_module:
+    state: present
+    name: proxy_http
+
+- name: Replace stock WSGI file to be compatible with virtualenv
+  template:
+    src: wsgi.py
+    dest: "{{ netbox_path }}/netbox/netbox/wsgi.py"
+
+- name: Set up default site template
+  template:
+    src: netbox-site.conf
+    dest: /etc/apache2/sites-available/netbox.conf
+
+- name: Disable default site
+  command: a2dissite 000-default
+
+- name: Enable site
+  command: a2ensite netbox
+  notify: restart apache

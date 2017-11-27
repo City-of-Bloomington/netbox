@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  description: Role for configuring a NetBox installation to manage datacenter infrastructure.
+  company: City of Bloomington, Indiana
+  issue_tracker_url: https://github.com/City-of-Bloomington/ansible-role-netbox/issues
+  license: GPLv3
+  min_ansible_version: 2.0
+  platforms:
+    - name: Ubuntu
+      versions:
+        - xenial
+  galaxy_tags:
+    - ubuntu
+    - webserver
+    - netbox
+    - apache
+    - python
+
+dependencies:
+  - { role: City-of-Bloomington.linux  }
+  - { role: City-of-Bloomington.apache  }
+  - { role: City-of-Bloomington.postgresql  }
+...
