@@ -1,6 +1,4 @@
 ---
-- include: superuser.yml
-
 - name: Install related packages
   apt:
     name: "{{ item }}"
